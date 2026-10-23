@@ -375,7 +375,19 @@ export class SessionService extends EventEmitter {
           let isLocationInbound = false;
           let locationPayload: any = null;
           let inboundMediaUrl: string | undefined = undefined;
+          let nativeButtonReplyId = '';
+          const interactiveMsg = (rawMsg as any)?.interactiveResponseMessage;
+          if (interactiveMsg?.nativeFlowResponseMessage?.paramsJson) {
+            try {
+              const parsed = JSON.parse(interactiveMsg.nativeFlowResponseMessage.paramsJson);
+              nativeButtonReplyId = parsed.id || parsed.selectedId || '';
+            } catch {}
+          }
+
           let messageText =
+            nativeButtonReplyId ||
+            rawMsg?.buttonsResponseMessage?.selectedDisplayText ||
+            rawMsg?.templateButtonReplyMessage?.selectedDisplayText ||
             rawMsg?.conversation ||
             rawMsg?.extendedTextMessage?.text ||
             rawMsg?.imageMessage?.caption ||

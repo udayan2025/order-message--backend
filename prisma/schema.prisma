@@ -1,0 +1,248 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum BusinessCategory {
+  medicine
+  gym
+  grocery
+  electronics
+  restaurant
+  salon
+  custom
+}
+
+enum SessionStatus {
+  CONNECTED
+  CONNECTING
+  DISCONNECTED
+}
+
+enum MessageSender {
+  customer
+  business
+  system
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  AUDIO
+  DOCUMENT
+  CATALOG_CARD
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  DISPATCHED
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  COD
+}
+
+model BusinessAccount {
+  id                  String            @id @default(cuid())
+  businessName        String
+  category            BusinessCategory  @default(custom)
+  categoryLabel       String            @default("Custom Business")
+  ownerName           String
+  phone               String
+  email               String?
+  address             String?
+  currency            String            @default("₹")
+  workingHours        String            @default("09:00 AM - 09:00 PM")
+  greetingMessage     String            @db.Text
+  aiPersonaPrompt     String            @db.Text
+  
+  // Anti-Ban & Pacing Settings
+  minDelaySeconds     Int               @default(8)
+  maxDelaySeconds     Int               @default(18)
+  typingSimulation    Boolean           @default(true)
+  typingSpeedWpm      Int               @default(60)
+  
+  // Feature Toggles
+  enableAi            Boolean           @default(true)
+  enableStockQueries  Boolean           @default(true)
+  allowedChats        String            @default("*")
+  
+  // Authentication & Webhooks
+  apiKey              String            @unique
+  domain              String?           @unique
+  password            String?
+  webhookUrl          String?
+  webhookSecret       String?
+  
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  
+  // Relations
+  user                User?
+  sessions            WhatsAppSession[]
+  catalog             CatalogItem[]
+  contacts            Contact[]
+  orders              Order[]
+  embeddings          CatalogEmbedding[]
+
+  @@map("business_accounts")
+}
+
+model WhatsAppSession {
+  id              String            @id // e.g. "wa_primary_01"
+  businessId      String
+  name            String            // e.g. "Primary Store Desk"
+  phoneNumber     String?           // e.g. "+919382468250"
+  status          SessionStatus     @default(DISCONNECTED)
+  qrCode          String?           @db.Text
+  authCredentials Json?
+  isPrimary       Boolean           @default(false)
+  autoReconnect   Boolean           @default(true)
+  
+  // Diagnostics & Telemetry
+  deviceModel     String?           @default("WhatsApp Web Multi-Device")
+  batteryPercent  Int?              @default(100)
+  latencyMs       Int?              @default(35)
+  lastConnectedAt DateTime?
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  business        BusinessAccount   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@map("whatsapp_sessions")
+}
+
+model CatalogItem {
+  id            String          @id @default(cuid())
+  businessId    String
+  sku           String
+  name          String
+  category      String
+  brand         String?
+  imageUrl      String?         @db.Text
+  price         Decimal         @db.Decimal(10, 2)
+  stock         Int             @default(0)
+  unit          String          @default("pcs")
+  description   String?         @db.Text
+  isAvailable   Boolean         @default(true)
+  
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  business      BusinessAccount @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  embeddings    CatalogEmbedding[]
+
+  @@index([businessId, name])
+  @@index([businessId, sku])
+  @@index([businessId, brand])
+  @@map("catalog_items")
+}
+
+model Contact {
+  id            String          @id @default(cuid())
+  businessId    String
+  phone         String
+  name          String
+  avatarBg      String?         @default("bg-emerald-600")
+  initials      String?         @default("RS")
+  tag           String          @default("Active Inquiry")
+  unreadCount   Int             @default(0)
+  isOnline      Boolean         @default(false)
+  lastSeenAt    DateTime?
+  pinnedMessageId String?
+  
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  messages      ChatMessage[]
+  orders        Order[]
+  business      BusinessAccount @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, phone])
+  @@map("contacts")
+}
+
+model ChatMessage {
+  id            String          @id @default(cuid())
+  contactId     String
+  sender        MessageSender
+  text          String          @db.Text
+  messageType   MessageType     @default(TEXT)
+  mediaUrl      String?
+  isAiGenerated Boolean         @default(false)
+  status        MessageStatus   @default(SENT)
+  isPinned      Boolean         @default(false)
+  timestamp     DateTime        @default(now())
+
+  contact       Contact         @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@map("chat_messages")
+}
+
+model Order {
+  id              String        @id @default(cuid())
+  businessId      String
+  contactId       String
+  orderNumber     String        @unique
+  totalAmount     Decimal       @db.Decimal(10, 2)
+  items           Json
+  deliveryAddress String?       @db.Text
+  status          OrderStatus   @default(PENDING)
+  paymentStatus   PaymentStatus @default(UNPAID)
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  business        BusinessAccount @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  contact         Contact         @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@map("orders")
+}
+
+model CatalogEmbedding {
+  id            String              @id @default(cuid())
+  businessId    String
+  catalogItemId String?
+  content       String              @db.Text
+  metadata      Json?
+  embedding     Float[]             // 1536-dimensional vector stored as native float array
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  business      BusinessAccount     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  catalogItem   CatalogItem?        @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@map("catalog_embeddings")
+}
+
+model User {
+  id         String          @id @default(cuid())
+  domain     String          @unique
+  password   String
+  businessId String          @unique
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  business   BusinessAccount @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@map("users")
+}

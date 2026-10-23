@@ -557,8 +557,9 @@ ${item.description || 'Premium genuine quality with official warranty.'}
 • ⚡ Fast Dispatch
 • 🚚 Cash on Delivery (COD) & UPI Accepted
 
-🛒 *Instant Order:*
-👉 Reply with *BUY ${item.sku}* to confirm order immediately!
+🛒 *Quick Actions:*
+👉 Reply with *BUY ${item.sku}* to order immediately
+💬 Reply with *ASK* for any questions
 
 [BUY_PRODUCT:${buyPayload}]`;
   }

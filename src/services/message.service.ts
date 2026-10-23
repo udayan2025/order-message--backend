@@ -246,111 +246,9 @@ export class MessageService {
           // ignore verification error and fallback to jid
         }
 
-        let sent: any;
-        let interactiveSent = false;
-
-        // Automatically attach Native WhatsApp Interactive Buttons for product inquiries or custom buttons
-        const buyMatch = sanitizedContent.match(/\[BUY_PRODUCT:\s*(\{[\s\S]*?\})\s*\]/i);
-        let productData: any = null;
-        if (buyMatch) {
-          try {
-            productData = JSON.parse(buyMatch[1]);
-          } catch {}
-        }
-
-        if (productData || (buttons && buttons.length > 0)) {
-          try {
-            const { generateWAMessageFromContent, proto, prepareWAMessageMedia } = await import('@whiskeysockets/baileys');
-
-            const nativeButtons: any[] = [];
-            if (productData) {
-              const formattedPrice = `${productData.currency || '₹'}${Number(productData.price).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-              nativeButtons.push({
-                name: 'quick_reply',
-                buttonParamsJson: JSON.stringify({
-                  display_text: `🛍️ Buy Now (${formattedPrice})`,
-                  id: `BUY ${productData.sku}`
-                })
-              });
-              nativeButtons.push({
-                name: 'quick_reply',
-                buttonParamsJson: JSON.stringify({
-                  display_text: '💬 Ask Question',
-                  id: `Tell me more about ${productData.name}`
-                })
-              });
-            } else if (buttons && buttons.length > 0) {
-              for (const btn of buttons) {
-                nativeButtons.push({
-                  name: btn.type === 'cta_url' ? 'cta_url' : 'quick_reply',
-                  buttonParamsJson: btn.type === 'cta_url'
-                    ? JSON.stringify({ display_text: btn.text, url: btn.url })
-                    : JSON.stringify({ display_text: btn.text, id: btn.id })
-                });
-              }
-            }
-
-            let headerMedia: any = undefined;
-            if (imgBuffer || effectiveMediaUrl) {
-              try {
-                headerMedia = await prepareWAMessageMedia(
-                  (imgBuffer ? { image: imgBuffer } : { image: { url: effectiveMediaUrl } }) as any,
-                  { upload: sock.waUploadToServer }
-                );
-              } catch (mediaPrepErr: any) {
-                console.warn('[Baileys] Media prep for interactive message:', mediaPrepErr.message);
-              }
-            }
-
-            const interactiveMessage = proto.Message.InteractiveMessage.create({
-              body: proto.Message.InteractiveMessage.Body.create({
-                text: outboundWhatsAppText
-              }),
-              footer: proto.Message.InteractiveMessage.Footer.create({
-                text: '⚡ Instant WhatsApp Actions'
-              }),
-              header: headerMedia?.imageMessage
-                ? proto.Message.InteractiveMessage.Header.create({
-                    title: productData ? `📦 ${productData.name}` : undefined,
-                    hasMediaAttachment: true,
-                    imageMessage: headerMedia.imageMessage
-                  })
-                : proto.Message.InteractiveMessage.Header.create({
-                    title: productData ? `📦 ${productData.name}` : undefined,
-                    hasMediaAttachment: false
-                  }),
-              nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
-                buttons: nativeButtons
-              })
-            });
-
-            const interactiveMsg = generateWAMessageFromContent(targetJid, {
-              viewOnceMessage: {
-                message: {
-                  messageContextInfo: {
-                    deviceListMetadata: {},
-                    deviceListMetadataVersion: 2
-                  },
-                  interactiveMessage
-                }
-              }
-            }, { userJid: (sock.user?.id || targetJid) as string });
-
-            await sock.relayMessage(targetJid, interactiveMsg.message!, { messageId: interactiveMsg.key?.id || whatsappMessageId });
-            if (interactiveMsg.key?.id) {
-              whatsappMessageId = interactiveMsg.key.id;
-              SessionService.getInstance().markMessageAsSent(whatsappMessageId);
-            }
-            interactiveSent = true;
-            console.log(`🚀 [Baileys] Successfully dispatched native interactive buttons to WhatsApp (${targetJid})`);
-          } catch (interactiveErr: any) {
-            console.warn('[Baileys] Native interactive buttons dispatch failed, falling back to standard message:', interactiveErr.message);
-          }
-        }
-
-        if (!interactiveSent) {
-          try {
-            sent = await sock.sendMessage(targetJid, msgPayload);
+        let sent;
+        try {
+          sent = await sock.sendMessage(targetJid, msgPayload);
           } catch (initialErr: any) {
             // If sending to @lid or @s.whatsapp.net failed, retry with alternate JID format
             const clean = targetJid.split('@')[0];
@@ -359,10 +257,9 @@ export class MessageService {
             sent = await sock.sendMessage(altJid, msgPayload);
           }
 
-          if (sent?.key?.id) {
-            whatsappMessageId = sent.key.id;
-            SessionService.getInstance().markMessageAsSent(sent.key.id);
-          }
+        if (sent?.key?.id) {
+          whatsappMessageId = sent.key.id;
+          SessionService.getInstance().markMessageAsSent(sent.key.id);
         }
         console.log(`🚀 [Baileys] Successfully dispatched message to WhatsApp (${targetJid}): "${sanitizedContent}"`);
       } catch (err: any) {

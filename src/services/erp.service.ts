@@ -539,24 +539,26 @@ Please generate a helpful and concise WhatsApp response.`;
       imageUrl: item.imageUrl || undefined,
       description: item.description || undefined,
       isAvailable
-    });
+    });
+    return `📦 *PRODUCT SHOWCASE: ${item.name}*
+━━━━━━━━━━━━━━━━━━━━
+🏷️ *Brand:* ${item.brand || 'Official Collection'}
+🔢 *SKU Code:* \`${item.sku}\`
+📁 *Category:* ${item.category}
+💰 *Offer Price:* *${formattedPrice}*${unitSuffix}
+📊 *Availability:* ${stockBadge}
 
-    const cleanPhone = (business?.phone || '').replace(/[^0-9]/g, '');
-    const waOrderLink = cleanPhone
-      ? `\n🔗 *Instant 1-Tap Order Link:*\nhttps://wa.me/${cleanPhone}?text=BUY%20${encodeURIComponent(item.sku)}`
-      : '';
+📝 *Specifications & Overview:*
+${item.description || 'Premium genuine quality with official warranty.'}
 
-    return `📦 *${item.name}*
+━━━━━━━━━━━━━━━━━━━━
+🛡️ *Buyer Protection Guarantee:*
+• ✅ 100% Genuine & Quality Inspected
+• ⚡ Fast Dispatch
+• 🚚 Cash on Delivery (COD) & UPI Accepted
 
-• 🏷️ *Brand:* ${item.brand || 'Original Store'}
-• 🔢 *SKU Code:* \`${item.sku}\`
-• 📁 *Category:* ${item.category}
-• 💰 *Price:* *${formattedPrice}*${unitSuffix}
-• 📊 ${stockBadge}
-${descPart}
-───────────────
-🛒 *How to Buy / Order:*
-👉 Reply with *BUY ${item.sku}* to order immediately!${waOrderLink}
+🛒 *Instant Order:*
+👉 Reply with *BUY ${item.sku}* to confirm order immediately!
 
 [BUY_PRODUCT:${buyPayload}]`;
   }

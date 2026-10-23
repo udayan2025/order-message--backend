@@ -101,6 +101,7 @@ model BusinessAccount {
   contacts            Contact[]
   orders              Order[]
   embeddings          CatalogEmbedding[]
+  templates           WhatsAppTemplate[]
 
   @@map("business_accounts")
 }
@@ -245,4 +246,51 @@ model User {
   business   BusinessAccount @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@map("users")
+}
+
+enum TemplateCategory {
+  MARKETING
+  UTILITY
+  AUTHENTICATION
+}
+
+enum TemplateStatus {
+  APPROVED
+  PENDING
+  REJECTED
+}
+
+enum TemplateHeaderType {
+  NONE
+  TEXT
+  IMAGE
+  DOCUMENT
+  VIDEO
+}
+
+model WhatsAppTemplate {
+  id              String             @id @default(cuid())
+  businessId      String
+  name            String
+  displayName     String
+  category        TemplateCategory   @default(MARKETING)
+  language        String             @default("en_US")
+  headerType      TemplateHeaderType @default(IMAGE)
+  headerContent   String?            @db.Text
+  bodyText        String             @db.Text
+  footerText      String?
+  buttons         Json?
+  variables       Json?
+  sampleValues    Json?
+  status          TemplateStatus     @default(APPROVED)
+  metaTemplateId  String?
+  isDefault       Boolean            @default(false)
+
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  business        BusinessAccount    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, name])
+  @@map("whatsapp_templates")
 }

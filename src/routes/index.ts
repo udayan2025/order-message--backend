@@ -11,6 +11,8 @@ import ragRoutes from './rag.routes';
 import erpRoutes from './erp.routes';
 import eventsRoutes from './events.routes';
 import orderRoutes from './order.routes';
+import locationSessionRoutes from './location-session.routes';
+import templateRoutes from './template.routes';
 import { WebhookController } from '../controllers/webhook.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
 
@@ -56,6 +58,8 @@ apiRouter.use('/rag', ragRoutes);
 apiRouter.use('/erp', erpRoutes);
 apiRouter.use('/events', eventsRoutes);
 apiRouter.use('/orders', orderRoutes);
+apiRouter.use('/location-session', locationSessionRoutes);
+apiRouter.use('/templates', templateRoutes);
 
 // Webhook simulation / testing endpoint
 apiRouter.post('/webhooks/simulate', authMiddleware, WebhookController.simulateInbound);
